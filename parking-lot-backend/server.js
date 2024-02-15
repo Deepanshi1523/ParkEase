@@ -84,7 +84,7 @@ app.post('/allocate-slot', (req, res) => {
     FROM parkingslot p 
     INNER JOIN floor f ON p.floor_id = f.id 
     WHERE p.status = "vacant" AND p.size = ? 
-    ORDER BY FIELD(p.size, ?, 'Small', 'Medium', 'Large', 'XLarge')
+    ORDER BY FIELD(p.size, 'Small', 'Medium', 'Large', 'XLarge')
     LIMIT 1`;
 
   connection.query(sql, [numberPlate, selectedSize], (err, result) => {
