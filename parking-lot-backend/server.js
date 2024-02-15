@@ -1,11 +1,12 @@
+//server.js
 const express = require('express');
 const mysql = require('mysql');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 
 const app = express();
-const port = 3000;
+const port = 8000;
 
-// Create connection to MySQL database
 const connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
@@ -13,7 +14,6 @@ const connection = mysql.createConnection({
   database: 'parking_lot_management'
 });
 
-// Connect to MySQL database
 connection.connect((err) => {
   if (err) {
     console.error('Error connecting to MySQL database: ' + err.stack);
@@ -22,45 +22,114 @@ connection.connect((err) => {
   console.log('Connected to MySQL database as id ' + connection.threadId);
 });
 
-const sql = 'SELECT * FROM parking_slots';
+const sql = 'SELECT * FROM parkinglot';
 
-  // Execute the SQL query
+app.use(bodyParser.json());
+app.use(cors());
+
+app.get('/parking-lots', (req, res) => {
   connection.query(sql, (err, result) => {
     if (err) {
-      console.error('Error fetching records: ' + err.message);
+      console.error('Error fetching parking lots: ' + err.message);
+      res.status(500).send('Error fetching parking lots');
       return;
     }
-    // Log the entire table to the console
-    console.log('Entire table:', result);
-
-    // Close the database connection
-    connection.end();
-  });
-
-// Middleware to parse incoming JSON requests
-app.use(bodyParser.json());
-
-// Endpoint to handle update request
-app.put('/update/:id', (req, res) => {
-  const id = req.params.id;
-  const newData = req.body;
-
-  // SQL query to update table
-  const sql = 'UPDATE your_table SET ? WHERE id = ?';
-
-  // Execute the SQL query
-  connection.query(sql, [newData, id], (err, result) => {
-    if (err) {
-      console.error('Error updating record: ' + err.message);
-      res.status(500).send('Error updating record');
-      return;
-    }
-    console.log('Record updated successfully');
-    res.status(200).send('Record updated successfully');
+    res.json(result);
   });
 });
 
-// Start the Express server
+app.get('/parking-lots/:id', (req, res) => {
+  const id = req.params.id;
+  const sql = 'SELECT * FROM parkinglot WHERE id = ?';
+
+  connection.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error fetching parking lot details: ' + err.message);
+      res.status(500).send('Error fetching parking lot details');
+      return;
+    }
+    if (result.length === 0) {
+      res.status(404).send('Parking lot not found');
+      return;
+    }
+    res.json(result[0]);
+  });
+});
+
+// app.get('/check-slot', (req, res) => {
+//   const size = req.query.size;
+//   const sql = 'SELECT p.id FROM parkingslot p INNER JOIN floor f ON p.floor_id = f.id WHERE p.status = "vacant" AND p.size = ? LIMIT 1';
+
+//   connection.query(sql, [size], (err, result) => {
+//     if (err) {
+//       console.error('Error checking slot availability: ' + err.message);
+//       res.status(500).send('Error checking slot availability');
+//       return;
+//     }
+//     if (result.length > 0) {
+//       res.json({ available: true, slotId: result[0].id });
+//     } else {
+//       res.json({ available: false });
+//     }
+//   });
+// });
+
+app.post('/allocate-slot', (req, res) => {
+  const { numberPlate, selectedSize } = req.body;
+  const sql = `
+    SELECT p.id 
+    FROM parkingslot p 
+    INNER JOIN floor f ON p.floor_id = f.id 
+    WHERE p.status = "vacant" AND p.size = ? 
+    ORDER BY FIELD(p.size, ?, 'Small', 'Medium', 'Large', 'XLarge')
+    LIMIT 1`;
+
+  connection.query(sql, [numberPlate, selectedSize], (err, result) => {
+    if (err) {
+      console.error('Error allocating slot: ' + err.message);
+      res.status(500).send('Error allocating slot');
+      return;
+    }
+    if (result.length > 0) {
+      // Slot is available, update the database
+      const slotId = result[0].id;
+      const slotNumber = `[${slotId.split(':')[0]}:${slotId.split(':')[1]}]`;
+      const updateQuery = 'UPDATE parkingslot SET status = "occupied", license_plate = ?, size = ? WHERE id = ?';
+      
+      connection.query(updateQuery, [numberPlate, selectedSize, slotId], (err, result) => {
+        if (err) {
+          console.error('Error updating slot status: ' + err.message);
+          res.status(500).send('Error allocating slot');
+          return;
+        }
+        console.log('Slot allocated successfully');
+        res.status(200).json({ slotNumber });
+      });
+    } else {
+      // No available slots
+      console.log('No available slots of this size');
+      res.status(404).send('No available slots of this size');
+    }
+  });
+});
+
+// app.put('/update/:id', (req, res) => {
+//   const id = req.params.id;
+//   const newData = req.body;
+
+//   const sql = 'UPDATE your_table SET ? WHERE id = ?';
+
+//   connection.query(sql, [newData, id], (err, result) => {
+//     if (err) {
+//       console.error('Error updating record: ' + err.message);
+//       res.status(500).send('Error updating record');
+//       return;
+//     }
+//     console.log('Record updated successfully');
+//     res.status(200).send('Record updated successfully');
+//   });
+// });
+
 app.listen(port, () => {
   console.log('Server is running on port ' + port);
 });

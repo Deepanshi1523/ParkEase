@@ -1,13 +1,22 @@
 // Homepage.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 
 const Homepage = () => {
-  // Dummy data for parking lots
-  const parkingLots = [
-    { id: 1, name: 'Main Street Parking Garage', location: '123 Main St' },
-    { id: 2, name: 'Downtown Plaza Parking', location: '456 Elm St' },
-  ];
+  const [parkingLots, setParkingLots] = useState([]);
+
+  useEffect(() => {
+    axios.get('http://localhost:8000/parking-lots')
+      .then(response => {
+        setParkingLots(response.data);
+      })
+      .catch(error => {
+        console.error('Error fetching parking lots:', error);
+      });
+  }, []);
+
+  console.log(parkingLots);
 
   return (
     <div>
@@ -16,7 +25,7 @@ const Homepage = () => {
         {parkingLots.map(parkingLot => (
           <li key={parkingLot.id}>
             <Link to={`/parking-lots/${parkingLot.id}`}>
-              {parkingLot.name} - {parkingLot.location}
+              {parkingLot.name} - {parkingLot.address}
             </Link>
           </li>
         ))}
