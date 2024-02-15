@@ -4,15 +4,18 @@ const mysql = require('mysql');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 
+require('dotenv').config();
+
 const app = express();
 const port = 8000;
 
 const connection = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '@Deepanshi123!',
-  database: 'parking_lot_management'
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE
 });
+
 
 connection.connect((err) => {
   if (err) {
